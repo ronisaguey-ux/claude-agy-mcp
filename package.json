@@ -1,0 +1,16 @@
+{
+  "name": "claude-agy-mcp",
+  "version": "1.0.0",
+  "description": "MCP server that lets any agent drive Claude Code and Antigravity (agy) sessions as controlled subagents: list, spawn, message, pause, resume, switch models, read output, across many concurrent instances.",
+  "type": "module",
+  "bin": { "claude-agy-mcp": "bin/claude-agy-mcp.js" },
+  "main": "bin/claude-agy-mcp.js",
+  "engines": { "node": ">=20.12" },
+  "scripts": {
+    "start": "node bin/claude-agy-mcp.js",
+    "test": "node test/smoke.mjs"
+  },
+  "files": ["bin", "src", "scripts", "docs", "README.md"],
+  "keywords": ["mcp", "claude-code", "antigravity", "agy", "subagents", "orchestration", "tmux"],
+  "license": "MIT"
+}
