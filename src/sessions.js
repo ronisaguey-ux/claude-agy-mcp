@@ -36,8 +36,13 @@ export async function listAll() {
     });
   }
 
+const OPENCODE_AGENTS = new Set(['gideon', 'felicity', 'george', 'frank', 'gary', 'gideontest']);
+
   for (const t of tmuxSessions) {
-    const harness = AGY_TMUX_HINT.test(t.name) ? 'agy' : CLAUDE_TMUX_HINT.test(t.name) ? 'claude' : 'tmux';
+    const isAgy = AGY_TMUX_HINT.test(t.name);
+    const isClaude = CLAUDE_TMUX_HINT.test(t.name);
+    const isOpencode = /opencode|openbot/i.test(t.name) || OPENCODE_AGENTS.has(t.name);
+    const harness = isAgy ? 'agy' : isClaude ? 'claude' : isOpencode ? 'opencode' : 'tmux';
     let preview = null;
     try { preview = (await tmux.captureContent(t.name, { lines: 3 })).slice(0, 400); } catch {}
     rows.push({

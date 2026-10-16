@@ -58,14 +58,22 @@ export async function sendCommand(name, command) {
   await run('tmux', ['send-keys', '-t', name, 'Enter'], { timeout: 10000 });
 }
 
-/** Literal text into the pane. Text and Enter are separate calls on purpose: a newline inside
- *  the literal payload would submit a half-typed message. */
+/** Literal text into the pane. Uses tmux paste-buffer with bracketed paste (-p) so multi-line
+ *  messages are pasted atomically without submitting prematurely on each internal newline. */
 export async function sendText(name, text, { submit = true, enterDelayMs = 250 } = {}) {
   const clean = String(text).replace(/\r/g, '');
-  for (const line of clean.split('\n')) {
-    await run('tmux', ['send-keys', '-t', name, '-l', line], { timeout: 10000 });
+  const bufName = `c_agy_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+  try {
+    await run('tmux', ['set-buffer', '-b', bufName, clean], { timeout: 10000 });
+    await run('tmux', ['paste-buffer', '-p', '-t', name, '-b', bufName], { timeout: 10000 });
+  } catch {
+    await run('tmux', ['send-keys', '-t', name, '-l', clean], { timeout: 10000 });
+  } finally {
+    try { await run('tmux', ['delete-buffer', '-b', bufName], { timeout: 5000 }); } catch {}
+  }
+  if (submit) {
+    await sleep(enterDelayMs);
     await run('tmux', ['send-keys', '-t', name, 'Enter'], { timeout: 10000 });
-    await sleep(120);
   }
   return { sent: true, submitted: submit };
 }
