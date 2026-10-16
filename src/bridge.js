@@ -58,18 +58,45 @@ export async function send({ from = 'opencode', to, subject = '', content, prior
     reply_to: replyTo,
   };
 
+  return withLock(file, async () => {
+    await fs.appendFile(file, JSON.stringify(entry) + '\n');
+    const fh = await fs.open(file, 'r+').catch(() => null);
+    if (fh) {
+      try { await fh.sync(); } finally { await fh.close(); }
+    }
+    return entry;
+  });
+}
+
+async function withLock(file, fn) {
   const lock = `${file}.lock`;
-  const handle = await fs.open(lock, 'w').catch(() => null);
+  let handle = null;
+  const deadline = Date.now() + 3000;
+  while (Date.now() < deadline) {
+    try {
+      handle = await fs.open(lock, 'wx');
+      break;
+    } catch (e) {
+      if (e.code === 'EEXIST') {
+        try {
+          const st = await fs.stat(lock);
+          if (Date.now() - st.mtimeMs > 10000) {
+            await fs.unlink(lock).catch(() => {});
+          }
+        } catch {}
+        await new Promise((r) => setTimeout(r, 60));
+      } else {
+        break;
+      }
+    }
+  }
   try {
     if (handle) { try { await handle.writeFile(String(process.pid)); } catch {} }
-    await fs.appendFile(file, JSON.stringify(entry) + '\n');
-    const fh = await fs.open(file, 'r+');
-    try { await fh.sync(); } finally { await fh.close(); }
+    return await fn();
   } finally {
     if (handle) await handle.close().catch(() => {});
     await fs.unlink(lock).catch(() => {});
   }
-  return entry;
 }
 
 export async function inbox({ for: who = 'opencode', unreadOnly = true, limit = 20, file = DEFAULT_BRIDGE } = {}) {
@@ -90,17 +117,19 @@ export async function conversation({ with: who, limit = 50, file = DEFAULT_BRIDG
 
 export async function markRead(ids, { file = DEFAULT_BRIDGE } = {}) {
   const set = new Set([].concat(ids));
-  const all = await readAll(file);
-  let n = 0;
-  for (const m of all) {
-    if (set.has(m.id)) { m.status = 'read'; n++; }
-  }
-  if (n) {
-    const tmp = `${file}.tmp`;
-    await fs.writeFile(tmp, all.map((m) => JSON.stringify(m)).join('\n') + '\n');
-    await fs.rename(tmp, file);
-  }
-  return { marked: n };
+  return withLock(file, async () => {
+    const all = await readAll(file);
+    let n = 0;
+    for (const m of all) {
+      if (set.has(m.id)) { m.status = 'read'; n++; }
+    }
+    if (n) {
+      const tmp = `${file}.tmp`;
+      await fs.writeFile(tmp, all.map((m) => JSON.stringify(m)).join('\n') + '\n');
+      await fs.rename(tmp, file);
+    }
+    return { marked: n };
+  });
 }
 
 export async function participants({ file = DEFAULT_BRIDGE } = {}) {

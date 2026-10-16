@@ -9,6 +9,7 @@ import { run, firstExisting } from './exec.js';
 
 export const CLAUDE_CANDIDATES = [
   process.env.CLAUDE_BIN,
+  `${process.env.HOME}/.local/bin/claude`,
   `${process.env.HOME}/.npm-global/bin/claude`,
   '/usr/local/bin/claude',
   '/usr/bin/claude',
@@ -17,6 +18,7 @@ export const CLAUDE_CANDIDATES = [
 export const AGY_CANDIDATES = [
   process.env.AGY_BIN,
   `${process.env.HOME}/.local/bin/agy`,
+  `${process.env.HOME}/.gemini/antigravity-cli/bin/agy`,
   '/usr/local/bin/agy',
   '/usr/bin/agy',
 ].filter(Boolean);
